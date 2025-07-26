@@ -1,5 +1,5 @@
 from django.contrib import admin
-from . models import Category, Product, ProductImage, Size, productSize
+from . models import Category, Product, ProductImage, Size, ProductSize
 
 
 class ProductImageInline(admin.TabularInline):
@@ -8,7 +8,7 @@ class ProductImageInline(admin.TabularInline):
 
 
 class ProductSizeInline(admin.TabularInline):
-  model = productSize
+  model = ProductSize
   extra = 1
 
 
