@@ -3,7 +3,7 @@ from django.views.generic import TemplateView, DeleteView
 from django.http import HttpResponse
 from django.template.response import TemplateResponse
 from . models import Category, Product, Size
-from django.db.models import Q
+from django.db.models import Q    # ძებნის რეალიზაციისთვის
 
 
 class IndexView(TemplateView):
@@ -32,7 +32,7 @@ class CatalogView(TemplateView):
 
   # პროდუქტების სორტირება
   FILTER_MAPPING = {
-    'color': lambda queryset, value: queryset.filter(color__iexact=value),
+    'color': lambda queryset, value: queryset.filter(color__iexact=value),    # value: რის მიხედვით ვახდენთ სორტირებას
     'min_price': lambda queryset, value: queryset.filter(price_gte=value),
     'max_price': lambda queryset, value: queryset.filter(price_lte=value),
     'size': lambda queryset, value: queryset.filter(product_size__size__name=value),
@@ -41,7 +41,51 @@ class CatalogView(TemplateView):
 
   def get_context_data(self, **kwargs):
     context = super().get_context_data(**kwargs)
+    category_slug = kwargs.get('category_slug')
+    categories = Category.objects.all()
+    products = Product.objects.all().order_by('-created_at')
+    current_category = None
 
-    return 
+    if category_slug:
+      current_category = get_object_or_404(Category, slug=category_slug)
+      products = products.filter(category=current_category)
+
+    # ძებნა
+    query = self.request.GET.get('q')   # ძებნა ხორციელდება url-ზე მიმართვით (q=... მომხმარებელი რაღაცას წერს)
+    if query:
+      products = products.filter(
+        Q(name__icontains=query) | Q(description__icontains=query)
+      )
+    
+    filter_params = {}
+    
+    for param, filter_func in self.FILTER_MAPPING.items():
+      value = self.request.GET.get(param)
+
+      if value:
+        products = filter_func(products, value)
+        filter_params[param] = value
+      else:
+        filter_params[param] = ''
+      
+    filter_params['q'] = query or ''
+
+    context.update(
+      {
+        'categories': categories,
+        'products': products,
+        'current_category': category_slug,
+        'filter_params': filter_params,
+        'sizes': Size.objects.all(),
+        'search_query': query or ''
+      }
+    )
+
+    if self.request.GET.get('show_search') == 'true':
+      context['show_search'] = True
+    elif self.request.GET.get('reset_search') == 'true':
+      context['reset_search'] = True
+
+    return context
 
 
