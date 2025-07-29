@@ -41,18 +41,18 @@ class CatalogView(TemplateView):
 
   def get_context_data(self, **kwargs):
     context = super().get_context_data(**kwargs)
-    category_slug = kwargs.get('category_slug')                   # URL-იდან კატეგორიის slug
+    category_slug = kwargs.get('category_slug')                   # URL-იდან კატეგორიის slug (/catalog/shoes)
     categories = Category.objects.all()                           # ყველა კატეგორია
     products = Product.objects.all().order_by('-created_at')      # ყველა პროდუქტი (ახალიდან)
     current_category = None
 
-    # კატეგორიის ფილტრაცი
+    # კატეგორიის ფილტრაცია
     if category_slug:
       current_category = get_object_or_404(Category, slug=category_slug)
       products = products.filter(category=current_category)
 
     # ძებნის ფუნქციონალი
-    query = self.request.GET.get('q')   # ძებნა ხორციელდება url-ზე მიმართვით (URL parameter: ?q=search_term)
+    query = self.request.GET.get('q')   # ძებნა ხორციელდება url-ზე მიმართვით (URL: ?q=nike)
     if query:
       products = products.filter(
         Q(name__icontains=query) | Q(description__icontains=query)
@@ -70,17 +70,17 @@ class CatalogView(TemplateView):
       else:
         filter_params[param] = ''
       
-    filter_params['q'] = query or ''
+    filter_params['q'] = query or ''                # ძებნა დამატებით
 
     # კონტექსტის დაკომპლექტება
     context.update(
       {
-        'categories': categories,
+        'categories': categories,                   # ყველა კატეგოეუა ნავიგაციისთვის
         'products': products,                       # გაფილტრული პროდუქტები
         'current_category': category_slug,          # მიმდინარე კატეგორია
-        'filter_params': filter_params,             # ყველა ფილტრი
-        'sizes': Size.objects.all(),                # ზომები ფილტრისთვის
-        'search_query': query or ''                 # ძებნის ტექსტი
+        'filter_params': filter_params,             # ყველა ფილტრი form values-ებისთვის
+        'sizes': Size.objects.all(),                # size filter dropdown-ისთვიის
+        'search_query': query or ''                 # ძებნის ტექსტი – search input
       }
     )
 
@@ -98,29 +98,29 @@ class CatalogView(TemplateView):
 
     if request.headers.get('HX-Request'):
       # HTMX-ის სხვადასხვა სცენარები
-      if context.get('show_searach'):
+      if context.get('show_search'):      # ?show_search=true → search_input.html
         return TemplateResponse(request, 'main/search_input.html', context)
-      elif context.get('reset_search'):
+      elif context.get('reset_search'):   # ?reset_search=true → search_button.html
         return TemplateResponse(request, 'main/search_button.html', {})
       
       # ფილტრის მოდალი ან კატალოგი
       template = 'main/filter_modal.html' if request.GET.get('show_filters') == 'true' else 'main/catalog.html'
-      # show_filters=true → ფილტრების მოდალი, სხვა შემთხვევა → კატალოგის კონტენტი
+      # ?show_filters=true → filter.modal.html, სხვა ყველა შემთხვევა → catalog.html
     
       return TemplateResponse(request, template, context)
 
-    return TemplateResponse(request, self.template_name, context)     # არა-HTMX → სრული გვერდი
+    return TemplateResponse(request, self.template_name, context)     # არა-HTMX → base.html
 
 
 class ProductDetailView(DetailView):
   model = Product
   template_name = 'main/base.html'
-  slug_field = 'slug'                   # რომელი ველით ვეძებთ
+  slug_field = 'slug'                   # რომელი ველით ვეძებთ მონაცემთა ბაზაში
   slug_url_kwarg = 'slug'               # URL-ის პარამეტრის სახელი
 
 
   def get_context_data(self, **kwargs):
-    context = super().get_context_data(**kwargs)
+    context = super().get_context_data(**kwargs)        # DetailView-ის context + product
     product = self.get_object()                         # მიმდინარე პროდუქტი
     context['categories'] = Category.objects.all()
 
