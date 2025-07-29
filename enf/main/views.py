@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from django.views.generic import TemplateView, DeleteView
+from django.views.generic import TemplateView, DetailView
 from django.http import HttpResponse
 from django.template.response import TemplateResponse
 from . models import Category, Product, Size
@@ -33,8 +33,8 @@ class CatalogView(TemplateView):
   # პროდუქტების სორტირება
   FILTER_MAPPING = {
     'color': lambda queryset, value: queryset.filter(color__iexact=value),    # value: რის მიხედვით ვახდენთ სორტირებას
-    'min_price': lambda queryset, value: queryset.filter(price_gte=value),
-    'max_price': lambda queryset, value: queryset.filter(price_lte=value),
+    'min_price': lambda queryset, value: queryset.filter(price__gte=value),
+    'max_price': lambda queryset, value: queryset.filter(price__lte=value),
     'size': lambda queryset, value: queryset.filter(product_size__size__name=value),
   }
 
@@ -93,7 +93,7 @@ class CatalogView(TemplateView):
     context = self.get_context_data(**kwargs)
 
     if request.headers.get('HX-Request'):
-      if context.get('show_serach'):
+      if context.get('show_searach'):
         return TemplateResponse(request, 'main/search_input.html', context)
       elif context.get('reset_search'):
         return TemplateResponse(request, 'main/search_button.html', {})
@@ -105,7 +105,7 @@ class CatalogView(TemplateView):
     return TemplateResponse(request, self.template_name, context)
 
 
-class ProductDetailView(DeleteView):
+class ProductDetailView(DetailView):
   model = Product
   template_name = 'main/base.html'
   slug_field = 'slug'
@@ -117,7 +117,7 @@ class ProductDetailView(DeleteView):
     product = self.get_object()
     context['categories'] = Category.objects.all()
     context['related_products'] = Product.objects.filter(category=product.category).exclude(id=product.id)[:4]
-    context['carrent_category'] = product.category.slug
+    context['current_category'] = product.category.slug
 
     return context
   
