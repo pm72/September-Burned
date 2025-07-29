@@ -41,7 +41,7 @@ class CatalogView(TemplateView):
 
   def get_context_data(self, **kwargs):
     context = super().get_context_data(**kwargs)
-    category_slug = kwargs.get('category_slug')
+    category_slug = kwargs.get('category_slug')     # ფილტრაცია კატეგორიების მიხედვით
     categories = Category.objects.all()
     products = Product.objects.all().order_by('-created_at')
     current_category = None
@@ -89,3 +89,44 @@ class CatalogView(TemplateView):
     return context
 
 
+  def get(self, request, *args, **kwargs):
+    context = self.get_context_data(**kwargs)
+
+    if request.headers.get('HX-Request'):
+      if context.get('show_serach'):
+        return TemplateResponse(request, 'main/search_input.html', context)
+      elif context.get('reset_search'):
+        return TemplateResponse(request, 'main/search_button.html', {})
+      
+      template = 'main/filter_modal.html' if request.GET.get('show_filters') == 'true' else 'main/catalog.html'
+    
+      return TemplateResponse(request, template, context)
+
+    return TemplateResponse(request, self.template_name, context)
+
+
+class ProductDetailView(DeleteView):
+  model = Product
+  template_name = 'main/base.html'
+  slug_field = 'slug'
+  slug_url_kwarg = 'slug'
+
+
+  def get_context_data(self, **kwargs):
+    context = super().get_context_data(**kwargs)
+    product = self.get_object()
+    context['categories'] = Category.objects.all()
+    context['related_products'] = Product.objects.filter(category=product.category).exclude(id=product.id)[:4]
+    context['carrent_category'] = product.category.slug
+
+    return context
+  
+
+  def get(self, request, *args, **kwargs):
+    context = self.get_context_data(**kwargs)
+    self.object = self.get_object()
+
+    if request.headers.get('HX-Request'):
+      return TemplateResponse(request, 'main/product_detail.html', context)
+
+    raise TemplateResponse(request, self.template_name, context)
