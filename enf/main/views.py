@@ -21,7 +21,7 @@ class IndexView(TemplateView):
   def get(self, request, *args, **kwargs):
     context = self.get_context_data(**kwargs)
 
-    if request.headers.get('HX-Request'):
+    if request.headers.get('HX-Request'):       # HTMX მოთხოვნის შემოწმება
       return TemplateResponse(request, 'main/home_content.html', context)
     
     return TemplateResponse(request, self.template_name, context)
@@ -41,49 +41,53 @@ class CatalogView(TemplateView):
 
   def get_context_data(self, **kwargs):
     context = super().get_context_data(**kwargs)
-    category_slug = kwargs.get('category_slug')     # ფილტრაცია კატეგორიების მიხედვით
-    categories = Category.objects.all()
-    products = Product.objects.all().order_by('-created_at')
+    category_slug = kwargs.get('category_slug')                   # URL-იდან კატეგორიის slug
+    categories = Category.objects.all()                           # ყველა კატეგორია
+    products = Product.objects.all().order_by('-created_at')      # ყველა პროდუქტი (ახალიდან)
     current_category = None
 
+    # კატეგორიის ფილტრაცი
     if category_slug:
       current_category = get_object_or_404(Category, slug=category_slug)
       products = products.filter(category=current_category)
 
-    # ძებნა
-    query = self.request.GET.get('q')   # ძებნა ხორციელდება url-ზე მიმართვით (q=... მომხმარებელი რაღაცას წერს)
+    # ძებნის ფუნქციონალი
+    query = self.request.GET.get('q')   # ძებნა ხორციელდება url-ზე მიმართვით (URL parameter: ?q=search_term)
     if query:
       products = products.filter(
         Q(name__icontains=query) | Q(description__icontains=query)
       )
     
+    # დინამიური ფილტრების გამოყენება
     filter_params = {}
     
     for param, filter_func in self.FILTER_MAPPING.items():
-      value = self.request.GET.get(param)
+      value = self.request.GET.get(param)           # URL parameter-ის მიღება
 
       if value:
-        products = filter_func(products, value)
-        filter_params[param] = value
+        products = filter_func(products, value)     # ფილტრის გამოყენება
+        filter_params[param] = value                # შენახვა template-ისთვის
       else:
         filter_params[param] = ''
       
     filter_params['q'] = query or ''
 
+    # კონტექსტის დაკომპლექტება
     context.update(
       {
         'categories': categories,
-        'products': products,
-        'current_category': category_slug,
-        'filter_params': filter_params,
-        'sizes': Size.objects.all(),
-        'search_query': query or ''
+        'products': products,                       # გაფილტრული პროდუქტები
+        'current_category': category_slug,          # მიმდინარე კატეგორია
+        'filter_params': filter_params,             # ყველა ფილტრი
+        'sizes': Size.objects.all(),                # ზომები ფილტრისთვის
+        'search_query': query or ''                 # ძებნის ტექსტი
       }
     )
 
-    if self.request.GET.get('show_search') == 'true':
+    # სპეციალური HTMX პარამეტრები / ლოგიკა
+    if self.request.GET.get('show_search') == 'true':           # show_search=true → search input ველი
       context['show_search'] = True
-    elif self.request.GET.get('reset_search') == 'true':
+    elif self.request.GET.get('reset_search') == 'true':        # reset_search=true → search ღილაკი (reset-ისთვის)
       context['reset_search'] = True
 
     return context
@@ -93,29 +97,34 @@ class CatalogView(TemplateView):
     context = self.get_context_data(**kwargs)
 
     if request.headers.get('HX-Request'):
+      # HTMX-ის სხვადასხვა სცენარები
       if context.get('show_searach'):
         return TemplateResponse(request, 'main/search_input.html', context)
       elif context.get('reset_search'):
         return TemplateResponse(request, 'main/search_button.html', {})
       
+      # ფილტრის მოდალი ან კატალოგი
       template = 'main/filter_modal.html' if request.GET.get('show_filters') == 'true' else 'main/catalog.html'
+      # show_filters=true → ფილტრების მოდალი, სხვა შემთხვევა → კატალოგის კონტენტი
     
       return TemplateResponse(request, template, context)
 
-    return TemplateResponse(request, self.template_name, context)
+    return TemplateResponse(request, self.template_name, context)     # არა-HTMX → სრული გვერდი
 
 
 class ProductDetailView(DetailView):
   model = Product
   template_name = 'main/base.html'
-  slug_field = 'slug'
-  slug_url_kwarg = 'slug'
+  slug_field = 'slug'                   # რომელი ველით ვეძებთ
+  slug_url_kwarg = 'slug'               # URL-ის პარამეტრის სახელი
 
 
   def get_context_data(self, **kwargs):
     context = super().get_context_data(**kwargs)
-    product = self.get_object()
+    product = self.get_object()                         # მიმდინარე პროდუქტი
     context['categories'] = Category.objects.all()
+
+    # მსგავსი პროდუქტები (იგივე კატეგორია, გარდა ამ პროდუქტისა, მხოლოდ 4 პროდუქტი)
     context['related_products'] = Product.objects.filter(category=product.category).exclude(id=product.id)[:4]
     context['current_category'] = product.category.slug
 
@@ -124,7 +133,7 @@ class ProductDetailView(DetailView):
 
   def get(self, request, *args, **kwargs):
     context = self.get_context_data(**kwargs)
-    self.object = self.get_object()
+    self.object = self.get_object()               # პროდუქტის ობიექტი
 
     if request.headers.get('HX-Request'):
       return TemplateResponse(request, 'main/product_detail.html', context)
