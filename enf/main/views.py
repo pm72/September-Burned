@@ -75,7 +75,7 @@ class CatalogView(TemplateView):
     # კონტექსტის დაკომპლექტება
     context.update(
       {
-        'categories': categories,                   # ყველა კატეგოეუა ნავიგაციისთვის
+        'categories': categories,                   # ყველა კატეგორია ნავიგაციისთვის
         'products': products,                       # გაფილტრული პროდუქტები
         'current_category': category_slug,          # მიმდინარე კატეგორია
         'filter_params': filter_params,             # ყველა ფილტრი form values-ებისთვის
