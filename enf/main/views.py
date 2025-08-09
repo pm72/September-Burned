@@ -132,8 +132,8 @@ class ProductDetailView(DetailView):
   
 
   def get(self, request, *args, **kwargs):
-    context = self.get_context_data(**kwargs)
     self.object = self.get_object()               # პროდუქტის ობიექტი
+    context = self.get_context_data(**kwargs)
 
     if request.headers.get('HX-Request'):
       return TemplateResponse(request, 'main/product_detail.html', context)
