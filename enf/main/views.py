@@ -21,10 +21,10 @@ class IndexView(TemplateView):
   def get(self, request, *args, **kwargs):
     context = self.get_context_data(**kwargs)
 
-    if request.headers.get('HX-Request'):       # HTMX მოთხოვნის შემოწმება
+    if request.headers.get('HX-Request'):     # HTMX მოთხოვნის შემოწმება. HX-Request header: HTMX ავტომატურად ამატებს ამ header-ს
       return TemplateResponse(request, 'main/home_content.html', context)
     
-    return TemplateResponse(request, self.template_name, context)
+    return TemplateResponse(request, self.template_name, context)   # Full response: სრული HTML გვერდი (base.html)
 
 
 class CatalogView(TemplateView):
@@ -42,6 +42,23 @@ class CatalogView(TemplateView):
   def get_context_data(self, **kwargs):
     context = super().get_context_data(**kwargs)
     category_slug = kwargs.get('category_slug')                   # URL-იდან კატეგორიის slug (/catalog/shoes)
+    '''
+    127.0.0.1:8000/catalog/
+    127.0.0.1:8000/catalog/<slug:category_slug>/
+    
+    127.0.0.1:8000/catalog/
+    kwargs = {}
+    category_slug = kwargs.get('category_slug')  ===>  None
+    
+    127.0.0.1:8000/catalog/shoes/
+    kwargs = {'category_slug': 'shoes'}
+    category_slug = kwargs.get('category_slug')  ===>  `shoes`
+    
+    127.0.0.1:8000/catalog/clothing/
+    kwargs = {'category_slug': 'clothing'}
+    category_slug = kwargs.get('category_slug')  ===>  `clothing`
+    '''
+
     categories = Category.objects.all()                           # ყველა კატეგორია
     products = Product.objects.all().order_by('-created_at')      # ყველა პროდუქტი (ახალიდან)
     current_category = None
@@ -63,6 +80,32 @@ class CatalogView(TemplateView):
     
     for param, filter_func in self.FILTER_MAPPING.items():
       value = self.request.GET.get(param)           # URL parameter-ის მიღება
+      '''
+      127.0.0.1:8000/catalog/?color=red&min_price=50&max_price=200&size=XL
+
+      self.request.GET = QueryDict {
+        'color': 'red',
+        'min_price': '50',
+        'max_price': '200',
+        'size': 'XL'
+      }
+
+      1st iteration:
+      param = 'color'
+      value = self.request.GET.get('color')  ===>  'red'
+
+      2nd iteration:
+      param = 'min_price'
+      value = self.request.GET.get('min_price')  ===>  '50'
+
+      3rd iteration:
+      param = 'max_price'
+      value = self.request.GET.get('max_price')  ===>  '200'
+
+      4rd iteration:
+      param = 'size'
+      value = self.request.GET.get('size')  ===>  'XL'
+      '''
 
       if value:
         products = filter_func(products, value)     # ფილტრის გამოყენება
@@ -71,6 +114,19 @@ class CatalogView(TemplateView):
         filter_params[param] = ''
       
     filter_params['q'] = query or ''                # ძებნა დამატებით
+    '''
+    127.0.0.1:8000/catalog/?q=nike
+    query = self.request.GET.get('q')  ===>  'nike'
+    filter_params['q'] = query or ''   ===>  'nike'
+
+    127.0.0.1:8000/catalog/
+    query = self.request.GET.get('q')  ===>  None
+    filter_params['q'] = query or ''   ===>  ''
+
+    127.0.0.1:8000/catalog/?q=
+    query = self.request.GET.get('q')  ===>  ''
+    filter_params['q'] = query or ''   ===>  ''
+    '''
 
     # კონტექსტის დაკომპლექტება
     context.update(
